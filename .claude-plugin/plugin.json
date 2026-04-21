@@ -1,0 +1,8 @@
+{
+  "name": "transcript-grabber",
+  "description": "Grab a clean, timestamped transcript from any Instagram video URL.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Mathew Rosenburg"
+  }
+}
