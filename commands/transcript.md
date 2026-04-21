@@ -22,28 +22,35 @@ The argument is either:
 
 The script below auto-detects which mode to use based on whether the argument starts with `http`.
 
-### FIRST-TIME SETUP CHECK (URL mode only)
+### ERROR HANDLING — BE PROACTIVE
 
-Before running the script on an Instagram URL, check whether the user has `APIFY_TOKEN` set in their environment. You can test with `echo $APIFY_TOKEN` (bash) or `echo %APIFY_TOKEN%` (cmd) — if it's empty or the script below exits with the "APIFY_TOKEN not set" error, **do not keep retrying**. Instead, walk the user through first-time setup:
+Your job is to make this skill feel magical for non-technical users. The Python script auto-installs its pip dependencies. But two things can still fail on a fresh machine — and when they do, **don't just print the error and stop**. Detect the specific failure mode below and handle it for the user.
 
-> "Looks like you haven't set up your Apify API token yet — this skill uses Apify to scrape the Instagram post. Here's a 2-minute setup:
->
-> **1. Create a free Apify account**
-> Go to https://console.apify.com/sign-up and sign up (free tier includes ~$5/month of credit, plenty for transcripts).
->
-> **2. Grab your API token**
-> After signing in, go to https://console.apify.com/settings/integrations and copy your **Personal API token** (starts with `apify_api_...`).
->
-> **3. Set it as an environment variable**
-> - **Windows (PowerShell):** Run `setx APIFY_TOKEN "apify_api_your_token_here"`, then close and reopen your terminal.
-> - **macOS/Linux:** Add `export APIFY_TOKEN="apify_api_your_token_here"` to `~/.zshrc` (Mac) or `~/.bashrc` (Linux), then run `source ~/.zshrc` or open a new terminal.
->
-> **4. Install Python dependencies (one-time)**
-> `pip install requests faster-whisper`
->
-> Once that's done, re-run `/transcript <url>` and you're set."
+**Case 1: `APIFY_TOKEN` missing (URL mode only)**
+The script exits with `ERROR: APIFY_TOKEN environment variable is not set.`
 
-Then stop and wait for them to complete setup. Do not re-run the script until they confirm.
+Respond with:
+> "You don't have an Apify API token set up yet — we need one to scrape the Instagram post. It takes 2 minutes:
+>
+> **1.** Go to https://console.apify.com/sign-up and create a free account (free tier includes ~$5/month credit — plenty for transcripts).
+> **2.** Once signed in, go to https://console.apify.com/settings/integrations and copy your **Personal API token** (starts with `apify_api_...`).
+> **3.** Paste the token in this chat and I'll set the environment variable for you."
+
+When they paste the token, run the appropriate command yourself via Bash:
+- **Windows:** `setx APIFY_TOKEN "their_token_here"`
+- **macOS/Linux:** append `export APIFY_TOKEN="their_token_here"` to `~/.zshrc` (Mac) or `~/.bashrc` (Linux)
+
+Then tell them: **"Done. Close and reopen your terminal (Windows) or run `source ~/.zshrc` (Mac), then re-run `/transcript <url>`."**
+
+**Case 2: FFmpeg missing**
+The script exits with `ERROR: FFmpeg is not installed...` and prints the correct install command for their OS.
+
+Offer to run that command for them:
+> "FFmpeg is missing — that's the video/audio decoder faster-whisper uses. I can install it for you. Want me to run: `<exact command from script output>`?"
+
+If yes, run it via Bash. On Windows this needs admin rights — if winget fails, fall back to guiding them to download the installer from https://ffmpeg.org/download.html. After install succeeds, tell them to close and reopen their terminal, then re-run the skill.
+
+**Do not silently retry the script in a loop.** One clean failure → one clear fix → one re-run.
 
 ### CRITICAL RULES
 
@@ -59,10 +66,42 @@ Then stop and wait for them to complete setup. Do not re-run the script until th
 Run this single Python script via Bash (with a 5-minute timeout):
 
 ```python
-import requests, json, time, os
+import os, sys, subprocess, shutil, platform, json, time
 from pathlib import Path
 
-# Config
+# --- PREFLIGHT 1: Auto-install missing Python packages ---
+def ensure(pkg, import_name=None):
+    try:
+        __import__(import_name or pkg.replace("-", "_"))
+    except ImportError:
+        print(f"Installing {pkg} (one-time setup)...")
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", pkg])
+
+ensure("requests")
+ensure("faster-whisper", "faster_whisper")
+
+import requests  # safe to import now
+
+# --- PREFLIGHT 2: Check FFmpeg ---
+if not shutil.which("ffmpeg"):
+    system = platform.system()
+    print("ERROR: FFmpeg is not installed or not on your PATH.")
+    print("faster-whisper needs FFmpeg to decode video/audio files.")
+    print()
+    if system == "Windows":
+        print("Install command (Windows, needs admin): winget install --id=Gyan.FFmpeg -e --source winget")
+        print("Or download manually from: https://ffmpeg.org/download.html")
+    elif system == "Darwin":
+        print("Install command (macOS):   brew install ffmpeg")
+        print("(If you don't have Homebrew: https://brew.sh)")
+    else:
+        print("Install command (Debian/Ubuntu):   sudo apt update && sudo apt install -y ffmpeg")
+        print("(For other Linux distros, use your package manager's ffmpeg package)")
+    print()
+    print("After installing, close and reopen your terminal, then re-run /transcript.")
+    exit(1)
+
+# --- Config ---
 INPUT = "$ARGUMENTS"  # Replace with the actual URL or file path from arguments
 HOME = Path.home()
 VIDEO_PATH = str(HOME / "temp_video.mp4")

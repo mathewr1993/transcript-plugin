@@ -20,60 +20,53 @@ Returns:
 - Timestamped transcript (each segment with `[start - end]`)
 - Clean flowing transcript (no timestamps)
 
-**Note:** The Apify API token is only needed for Instagram URLs. Local file transcription works with zero tokens — just Python + faster-whisper.
-
 ---
 
-## Installation (one-time, ~3 minutes)
+## Installation
+
+**If you're non-technical, just do step 1.** The plugin will auto-detect anything else that's missing and walk you through it in chat.
 
 ### 1. Install the plugin
+
 In Claude Code, run:
 ```
 /plugin marketplace add mathewr1993/transcript-plugin
 /plugin install transcript-grabber@transcript-plugin
 ```
 
-### 2. Get your own free Apify API token
-This skill uses [Apify](https://apify.com) to scrape Instagram. Each person needs their own key (free tier is plenty).
-
-1. Sign up at https://console.apify.com/sign-up — free tier includes ~$5/month credit, which covers hundreds of transcripts.
-2. Go to **Settings → API & Integrations**: https://console.apify.com/settings/integrations
-3. Copy your **Personal API token** (starts with `apify_api_...`).
-
-### 3. Set the token as an environment variable
-
-**Windows (PowerShell):**
-```powershell
-setx APIFY_TOKEN "apify_api_your_token_here"
-```
-Then **close and reopen your terminal** — `setx` only applies to new terminals.
-
-**macOS / Linux:**
-Add this line to `~/.zshrc` (Mac default) or `~/.bashrc` (Linux):
-```bash
-export APIFY_TOKEN="apify_api_your_token_here"
-```
-Then run `source ~/.zshrc` (or `source ~/.bashrc`), or open a new terminal.
-
-**Verify it worked:**
-```bash
-# Windows:
-echo %APIFY_TOKEN%
-# macOS/Linux:
-echo $APIFY_TOKEN
-```
-Should print your token.
-
-### 4. Install the Python dependencies
-```bash
-pip install requests faster-whisper
-```
-(First `/transcript` run will also download the Whisper "base" model — about 150MB, one-time.)
-
-### 5. Test it
-In Claude Code:
+Then try it:
 ```
 /transcript https://www.instagram.com/p/DWiDUi8jIuw/
+```
+
+**That's it.** On first run, the plugin will:
+- Auto-install the Python packages it needs (`requests`, `faster-whisper`) — no action from you
+- Check if FFmpeg is installed. If not, Claude will offer to run the install command for you
+- Check if your Apify API token is set. If not, Claude will walk you through getting one and set the environment variable for you
+
+For local file transcription, you don't even need the Apify token — just pass a file path.
+
+---
+
+### Manual setup (if you prefer to do it yourself)
+
+#### Prerequisites
+- **Python 3.9+** — https://www.python.org/downloads/
+- **FFmpeg** (for video/audio decoding):
+  - Windows: `winget install --id=Gyan.FFmpeg -e --source winget`
+  - macOS: `brew install ffmpeg`
+  - Linux (Debian/Ubuntu): `sudo apt install ffmpeg`
+
+#### Apify API token (only needed for Instagram URLs)
+1. Sign up at https://console.apify.com/sign-up (free tier includes ~$5/month credit — covers hundreds of transcripts).
+2. Go to https://console.apify.com/settings/integrations and copy your **Personal API token** (starts with `apify_api_...`).
+3. Set it as an env var:
+   - **Windows (PowerShell):** `setx APIFY_TOKEN "apify_api_your_token_here"` — then close and reopen your terminal
+   - **macOS/Linux:** add `export APIFY_TOKEN="apify_api_your_token_here"` to `~/.zshrc` or `~/.bashrc`, then `source` it
+
+#### Python packages (auto-installed on first run, but if you want to do it yourself)
+```bash
+pip install requests faster-whisper
 ```
 
 ---
@@ -92,14 +85,16 @@ Or turn on auto-update in `/plugin` → Marketplaces tab.
 
 | Problem | Fix |
 |---|---|
-| `APIFY_TOKEN environment variable is not set` | Your terminal hasn't picked up the new variable. Close and reopen your terminal, or run `echo $APIFY_TOKEN` / `echo %APIFY_TOKEN%` to verify it's set. |
-| `No video found. Post type: ...` | The link is a photo or carousel post, not a video. Only videos/reels have transcripts. |
-| Transcription is slow on first run | Normal — Whisper is downloading its model (~150MB, one-time). Subsequent runs are fast. |
-| `ModuleNotFoundError: No module named 'faster_whisper'` | Run `pip install faster-whisper` (or `pip3 install faster-whisper`). |
+| `APIFY_TOKEN environment variable is not set` | Claude will offer to walk you through getting + setting a token. Or set it manually (see Manual setup above). |
+| `FFmpeg is not installed or not on your PATH` | Claude will offer to run the install command for your OS. Needs admin on Windows. |
+| `No video found. Post type: ...` | The Instagram link is a photo or carousel, not a video. Only videos/reels have transcripts. |
+| Slow on first run | Normal — Whisper downloads its model (~150MB, one-time). Subsequent runs are fast. |
+| Python packages fail to auto-install | Your Python might be in a restricted environment. Run `pip install requests faster-whisper` manually. |
 
 ---
 
 ## What it uses
 
-- **[Apify](https://apify.com)** — scrapes the Instagram post and gets the video URL
+- **[Apify](https://apify.com)** — scrapes the Instagram post and gets the video URL (only used for IG URLs)
 - **[faster-whisper](https://github.com/SYSTRAN/faster-whisper)** — local CPU transcription (no API cost, runs on your machine)
+- **[FFmpeg](https://ffmpeg.org)** — decodes video/audio formats so faster-whisper can read them
