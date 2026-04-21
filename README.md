@@ -1,15 +1,26 @@
 # Transcript Grabber — Claude Code Plugin
 
-A `/transcript` slash command for Claude Code. Paste an Instagram video URL, get a clean timestamped transcript.
+A `/transcript` slash command for Claude Code. Works on two kinds of input:
+- **Instagram video URLs** — scrapes the post and transcribes the video
+- **Local video/audio files** — transcribes a file already on your machine (mp4, mov, mkv, webm, mp3, wav, m4a, anything ffmpeg can decode)
 
 ```
+# Instagram URL
 /transcript https://www.instagram.com/p/DWiDUi8jIuw/
+
+# Local file (Windows)
+/transcript C:/Users/you/Downloads/interview.mp4
+
+# Local file (macOS/Linux)
+/transcript /Users/you/recordings/podcast.mp3
 ```
 
 Returns:
-- Creator handle + video duration
+- Source + duration (creator handle for IG, filename for local files)
 - Timestamped transcript (each segment with `[start - end]`)
 - Clean flowing transcript (no timestamps)
+
+**Note:** The Apify API token is only needed for Instagram URLs. Local file transcription works with zero tokens — just Python + faster-whisper.
 
 ---
 
